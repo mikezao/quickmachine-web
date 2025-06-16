@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Azure VM</title>
+    <style>
+        body { font-family: sans-serif; }
+        .container { max-width: 500px; margin: 2em auto; padding: 1em; border: 1px solid #ccc; border-radius: 5px; }
+        label { display: block; margin-bottom: .5em; }
+        input, select { width: 100%; padding: .5em; margin-bottom: 1em; }
+        button { padding: .7em 1.2em; background-color: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Configure Your Azure VM</h2>
+        <form id="vm-form">
+            <label for="vm-name">VM Name:</label>
+            <input type="text" id="vm-name" name="VM_NAME" required>
+
+            <label for="vm-size">VM Size (e.g., Standard_B1s):</label>
+            <input type="text" id="vm-size" name="VM_SIZE" value="Standard_B1s" required>
+
+            <label for="os">Operating System SKU:</label>
+            <input type="text" id="os" name="OS_SKU" value="20_04-lts-gen2" required>
+
+            <button type="submit">Create VM</button>
+        </form>
+        <div id="response"></div>
+    </div>
+
+    <script>
+        document.getElementById('vm-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Submitting request...';
+
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                // This URL will be the one for your backend App Service
+                const backendUrl = 'https://quickmachine-backend-func.azurewebsites.net/trigger';
+
+                const response = await fetch(backendUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                responseDiv.textContent = `Success! Pipeline triggered. View status here: ${result.web_url}`;
+                alert('Your VM creation request has been submitted!');
+
+            } catch (error) {
+                console.error('Error triggering pipeline:', error);
+                responseDiv.textContent = `Error: ${error.message}`;
+                alert('There was an error submitting your request.');
+            }
+        });
+    </script>
+</body>
+</html>

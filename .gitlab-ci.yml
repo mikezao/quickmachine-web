@@ -1,0 +1,48 @@
+stages:
+  - deploy_infra
+  - deploy_code
+
+deploy_infrastructure:
+  stage: deploy_infra
+  image: mcr.microsoft.com/azterraform:latest
+  before_script:
+    - export ARM_CLIENT_ID=$AZURE_CLIENT_ID
+    - export ARM_CLIENT_SECRET=$AZURE_CLIENT_SECRET
+    - export ARM_SUBSCRIPTION_ID=$AZURE_SUBSCRIPTION_ID
+    - export ARM_TENANT_ID=$AZURE_TENANT_ID
+    - export TF_VAR_app_name=$APP_NAME
+    - export TF_VAR_gitlab_project_id=$GITLAB_PROJECT_ID
+    - export TF_VAR_gitlab_trigger_token=$GITLAB_TRIGGER_TOKEN
+    - cd terraform
+    - terraform init -reconfigure
+  script:
+    - terraform apply -auto-approve
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "web"
+  tags:
+    - terraforms
+
+deploy_function_code:
+  stage: deploy_code
+  image: mcr.microsoft.com/azure-cli
+  before_script:
+    - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+  script:
+    - echo "Installing dependencies..."
+    - apt-get update -y && apt-get install -y zip
+    - echo "Zipping function code..."
+    - cd backend
+    - zip -r ../backend.zip .
+    - cd ..
+    - echo "Deploying zipped code..."
+    - az functionapp deployment source config-zip -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" --src backend.zip
+    - echo "Deployment command sent. Waiting for 30 seconds..."
+    - sleep 30
+    - echo "Verifying function deployment..."
+    - az functionapp function show -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" -f HttpTrigger  
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "trigger"
+    - if: $CI_PIPELINE_SOURCE == "web"
+  tags:
+    - terraforms
