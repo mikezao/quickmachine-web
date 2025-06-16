@@ -1,6 +1,7 @@
 stages:
   - deploy_infra
   - deploy_code
+  - deploy_frontend
 
 deploy_infrastructure:
   stage: deploy_infra
