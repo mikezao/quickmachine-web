@@ -1,0 +1,9 @@
+{
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "Azure Function backend for QuickMachine",
+    "main": "HttpTrigger/index.js",
+    "dependencies": {
+      "node-fetch": "^2.6.7"
+    }
+  }

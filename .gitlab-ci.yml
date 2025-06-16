@@ -25,22 +25,42 @@ deploy_infrastructure:
 
 deploy_function_code:
   stage: deploy_code
-  image: mcr.microsoft.com/azure-cli
+  # Use the official Node.js image, which has 'npm' and 'apt-get'
+  image: node:18
   before_script:
+    - echo "Installing dependencies and Azure CLI from Microsoft's repository..."
+    
+    # 1. Update package lists and install prerequisite packages
+    - apt-get update -y
+    - apt-get install -y ca-certificates curl apt-transport-https lsb-release gnupg
+
+    # 2. Download and install the Microsoft signing key
+    - mkdir -p /etc/apt/keyrings
+    - curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | tee /etc/apt/keyrings/microsoft.gpg > /dev/null
+    - chmod go+r /etc/apt/keyrings/microsoft.gpg
+
+    # 3. Add the Azure CLI software repository
+    - echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/azure-cli.list
+
+    # 4. Update package lists again and install Azure CLI and zip
+    - apt-get update -y
+    - apt-get install -y azure-cli zip
+    
+    # 5. Login to Azure using the Service Principal
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
   script:
-    - echo "Installing dependencies..."
-    - apt-get update -y && apt-get install -y zip
-    - echo "Zipping function code..."
+    - echo "Changing to backend directory..."
     - cd backend
+    - echo "Installing Node.js dependencies..."
+    # 5. Install production dependencies for your function
+    - npm install --production
+    - echo "Zipping function code with dependencies..."
+    # 6. Zip the contents, including the new node_modules folder
     - zip -r ../backend.zip .
     - cd ..
-    - echo "Deploying zipped code..."
+    - echo "Deploying zipped code to Function App..."
+    # 7. Deploy the complete package
     - az functionapp deployment source config-zip -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" --src backend.zip
-    - echo "Deployment command sent. Waiting for 30 seconds..."
-    - sleep 30
-    - echo "Verifying function deployment..."
-    - az functionapp function show -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" -f HttpTrigger  
   rules:
     - if: $CI_PIPELINE_SOURCE == "trigger"
     - if: $CI_PIPELINE_SOURCE == "web"
