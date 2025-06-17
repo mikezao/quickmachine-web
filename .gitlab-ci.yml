@@ -50,18 +50,25 @@ deploy_function_code:
     # 5. Login to Azure using the Service Principal
     - az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
   script:
-    - echo "Changing to backend directory..."
-    - cd backend
-    - echo "Installing Node.js dependencies..."
-    # 5. Install production dependencies for your function
-    - npm install --production
-    - echo "Zipping function code with dependencies..."
-    # 6. Zip the contents, including the new node_modules folder
-    - zip -r ../backend.zip .
-    - cd ..
-    - echo "Deploying zipped code to Function App..."
-    # 7. Deploy the complete package
-    - az functionapp deployment source config-zip -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" --src backend.zip
+  # 1. Clone the backend code from GitHub into a folder named 'backend_src'
+  - echo "Cloning backend code from GitHub..."
+  - git clone "https://oauth2:${GITHUB_ACCESS_TOKEN}@github.com/mikezao/api-backend.git" backend_src
+  
+  # 2. Navigate into the cloned directory
+  - cd backend_src
+  
+  # 3. Run npm install right here, since package.json is at the root
+  - echo "Installing Node.js dependencies..."
+  - npm install --production
+  
+  # 4. Zip the contents of the current directory
+  - echo "Zipping function code with dependencies..."
+  - zip -r ../backend.zip .
+  - cd ..
+  
+  # 5. Deploy the new zip file to your Function App
+  - echo "Deploying zipped code to Function App..."
+  - az functionapp deployment source config-zip -g "${APP_NAME}-rg" -n "${APP_NAME}-backend-func" --src backend.zip
   rules:
     - if: $CI_PIPELINE_SOURCE == "trigger"
     - if: $CI_PIPELINE_SOURCE == "web"
